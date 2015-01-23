@@ -18,6 +18,7 @@ var gutil = require('gulp-util');
 var jshint = require('gulp-jshint');
 var plumber = require('gulp-plumber');
 var prepend = require('gulp-insert').prepend;
+var rename = require('gulp-rename');
 var sourcemaps = require('gulp-sourcemaps');
 var stylish = require('jshint-stylish');
 
@@ -32,11 +33,14 @@ function lint() {
 
 function build() {
   return readPrelude.then(function(prelude) {
-    return gulp.src('src/**/*.js')
+    return gulp.src(['src/**/*.js', 'src/**/*.jsx'])
       .pipe(plumber())
       .pipe(prepend(prelude))
       .pipe(es6to5({
         modules: 'common',
+      }))
+      .pipe(rename(function(path) {
+        path.extname = '.js';
       }))
       .pipe(gulp.dest('dist'));
   });
