@@ -17,5 +17,5 @@ module.exports = {
     port: 8000 },
   flux: {
     protocol: "http",
-    host: "localhost",
+    hostname: "localhost",
     port: 8080 } };

@@ -4,7 +4,7 @@ export default {
   },
   flux: {
     protocol: 'http',
-    host: 'localhost',
+    hostname: 'localhost',
     port: 8080,
   },
 };

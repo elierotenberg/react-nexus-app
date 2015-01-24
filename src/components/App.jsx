@@ -2,24 +2,18 @@ import Lifespan from 'lifespan';
 import { React, Mixin } from 'react-nexus';
 import LocalFlux from 'nexus-flux/adapters/Local';
 import RemoteFluxClient from 'nexus-flux-socket.io/client';
-import Router from 'isomorphic-router';
 import { parse, format } from 'url';
 
 import { flux } from '../config';
-const { protocol, host, port } = flux;
-const fluxURL = format({ protocol, host, port });
+import router from '../router';
 
-function getFullpath({ req, window }) {
-  const href = req ? req.url : (window.location || window.history.location).href;
-  const { path, hash } = parse(href);
-  return `${path}${hash ? hash : ''}`;
-}
+const { protocol, hostname, port } = flux;
+const fluxURL = format({ protocol, hostname, port });
 
-const AppClass = React.createClass({
+const App = React.createClass({
   mixins: [Mixin],
 
   getNexusBindings() {
-    console.warn('getNexusBindings');
     return {
       router: [this.getNexus().local, '/router'],
       info: [this.getNexus().remote, '/info'],
@@ -27,15 +21,13 @@ const AppClass = React.createClass({
   },
 
   render() {
-    console.warn('this.state', this.state);
     const { info, router } = this.state;
     return <div>
-      <div>The server is named {info ? info.get('name') : null},
-        its clock show {info ? info.get('clock') : null},
-        and there are currently {info ? info.get('connected') : null} connected clients.
+      <div>
+        The server is named {info ? info.get('name') : null}, its clock shows {info ? info.get('clock') : null}, and there are currently {info ? info.get('connected') : null} connected clients.
       </div>
       <ul>The current routes are:
-        {router && router.get('routes') ? router.get('routes').forEach(({ title, description, query, params, hash }, k) =>
+        {router && router.get('routes') ? router.get('routes').map(({ title, description, query, params, hash }, k) =>
           <li key={k}>{title} ({JSON.stringify({ description, query, params, hash })})</li>
         ) : null}
       </ul>
@@ -43,14 +35,19 @@ const AppClass = React.createClass({
   },
 
   statics: {
-    router: () => {
-      const router = new Router();
-      const tagRoute = (title, description) => (query, params, hash) => { title, description, query, params, hash };
-      router.on('/', tagRoute('Home', 'The homepage of my application'));
-      router.on('/about', tagRoute('About', 'Where I explain what my application does'));
-      router.on('/contact', tagRoute('Contact', 'You can contact us here'));
-      return router;
-    }(),
+    styles: {
+      '*': {
+        boxSizing: 'border-box',
+      },
+    },
+
+    getRoutes({ req, window, url }) {
+      const href = url ? url :
+        req ? req.url :
+        window ? (window.location || window.history.location).href : null;
+      const { path, hash } = parse(href);
+      return router.route(`${path}${hash ? hash : ''}`);
+    },
 
     createNexus({ req, window }, clientID, lifespan) {
       if(__DEV__) {
@@ -80,13 +77,12 @@ const AppClass = React.createClass({
         nexus.remote.lifespan.release();
       });
 
-      const router = AppClass.router;
       const routerStore = localFluxServer.Store('/router', lifespan);
 
       localFluxServer.Action('/router/navigate', lifespan)
       .onDispatch(({ url }) => {
         if(__NODE__) {
-          return routerStore.set('routes', router.route(url)).commit();
+          return routerStore.set('routes', App.getRoutes({ url })).commit();
         }
         if(__BROWSER__) {
           return window.history.pushState(null, null, url);
@@ -95,42 +91,37 @@ const AppClass = React.createClass({
 
       if(__BROWSER__) {
         function updateMetaTags() {
-          const meta = AppClass.getMeta({ window });
-          const title = window.document.getElementsByTagName('title')[0];
-          if(title) {
-            title.textContent = meta.title;
+          const { title, description } = App.getMeta({ window });
+          const titleTag = window.document.getElementsByTagName('title')[0];
+          if(titleTag) {
+            titleTag.textContent = title;
           }
           if(window.document.querySelector) {
-            const description = window.document.querySelector('meta[name=description]');
-            if(description) {
-              description.textContent = meta.description;
+            const descriptionTag = window.document.querySelector('meta[name=description]');
+            if(descriptionTag) {
+              descriptionTag.textContent = description;
             }
           }
         }
 
         const ln = () => {
           updateMetaTags();
-          routerStore.set('routes', router.route(getFullpath(window))).commit();
+          routerStore.set('routes', App.getRoutes({ window })).commit();
         };
         window.addEventListener('popstate', ln);
         lifespan.onRelease(() => window.removeEventListener('popstate', ln));
         updateMetaTags();
       }
 
-      routerStore.set('routes', router.route(getFullpath({ req, window }))).commit();
-      console.warn(routerStore);
+      routerStore.set('routes', App.getRoutes({ req, window })).commit();
 
       return nexus;
     },
 
     getMeta({ req, window }) {
-      const routes = AppClass.router.route(url);
-      if(routes.length > 1) {
-        return routes[0];
-      }
-      return 'Not found';
+      return App.getRoutes({ req, window })[0];
     },
   },
 });
 
-export default AppClass;
+export default App;

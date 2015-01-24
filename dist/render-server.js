@@ -48,7 +48,9 @@ var App = React.createFactory(AppClass);
 var port = render.port;
 var INT_MAX = 9007199254740992;
 
-express().use(express["static"](__dirname + "/public")).get("*", function (req, res) {
+express().use(express["static"](__dirname + "/public")).get("/favicon.ico", function (req, res) {
+  return res.status(404).end();
+}).get("*", function (req, res) {
   var clientID = _.uniqueId("Client" + _.random(1, INT_MAX - 1));
   var lifespan = new Lifespan();
   var nexus = AppClass.createNexus({ req: req }, clientID, lifespan);
@@ -62,7 +64,7 @@ express().use(express["static"](__dirname + "/public")).get("*", function (req, 
 
     var title = _AppClass$getMeta.title;
     var description = _AppClass$getMeta.description;
-    res.status(200).send("\n      <!doctype html lang='en-US'>\n      <html>\n      <head>\n        <meta charset='utf-8'>\n        <meta charset='X-UA-Compatible' content='IE=edge'>\n        <title>" + jsesc(title) + "</title>\n        <meta name='description' content='" + jsesc(description) + "'>\n        <link rel='stylesheet' href='c.css'>\n        </head>\n      <body>\n        <div id='app-root'>" + html + "</div>\n        <script src='//cdnjs.cloudflare.com/ajax/libs/json2/20140204/json2.min.js'></script>\n        <script>\n          window.reactNexusData = JSON.parse(" + JSON.stringify(data) + ");\n          window.reactNexusClientID = '" + jsesc(clientID) + "';</script>\n        <script src='c.js'></script>\n        <script>\n          (function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=\n          function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;\n          e=o.createElement(i);r=o.getElementsByTagName(i)[0];\n          e.src='//www.google-analytics.com/analytics.js';\n          r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));\n          ga('create','UA-XXXXX-X','auto');ga('send','pageview');\n        </script>\n      </body>\n      </html>\n    ");
+    res.status(200).send("<!doctype html lang='en-US'>\n<html>\n<head>\n  <meta charset='utf-8'>\n  <meta charset='X-UA-Compatible' content='IE=edge'>\n  <title>" + jsesc(title) + "</title>\n  <meta name='description' content='" + jsesc(description) + "'>\n  <link rel='stylesheet' href='c.css'>\n  </head>\n<body>\n  <div id='app-root'>" + html + "</div>\n  <script src='//cdnjs.cloudflare.com/ajax/libs/json2/20140204/json2.min.js'></script>\n  <script>\n    window.reactNexusData = JSON.parse('" + jsesc(JSON.stringify(data)) + "');\n    window.reactNexusClientID = '" + jsesc(clientID) + "';</script>\n  <script src='c.js'></script>\n  <script>\n    (function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=\n    function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;\n    e=o.createElement(i);r=o.getElementsByTagName(i)[0];\n    e.src='//www.google-analytics.com/analytics.js';\n    r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));\n    ga('create','UA-XXXXX-X','auto');ga('send','pageview');\n  </script>\n</body>\n</html>");
   })["catch"](function (err) {
     res.status(500);
     if (__DEV__) {

@@ -24,40 +24,27 @@ var LocalFlux = _interopRequire(require("nexus-flux/adapters/Local"));
 
 var RemoteFluxClient = _interopRequire(require("nexus-flux-socket.io/client"));
 
-var Router = _interopRequire(require("isomorphic-router"));
-
 var parse = require("url").parse;
 var format = require("url").format;
 var flux = require("../config").flux;
+var router = _interopRequire(require("../router"));
+
 var protocol = flux.protocol;
-var host = flux.host;
+var hostname = flux.hostname;
 var port = flux.port;
-var fluxURL = format({ protocol: protocol, host: host, port: port });
+var fluxURL = format({ protocol: protocol, hostname: hostname, port: port });
 
-function getFullpath(_ref) {
-  var req = _ref.req;
-  var window = _ref.window;
-  var href = req ? req.url : (window.location || window.history.location).href;
-  var _parse = parse(href);
-
-  var path = _parse.path;
-  var hash = _parse.hash;
-  return "" + path + "" + (hash ? hash : "");
-}
-
-var AppClass = React.createClass({
-  displayName: "AppClass",
+var App = React.createClass({
+  displayName: "App",
   mixins: [Mixin],
 
   getNexusBindings: function getNexusBindings() {
-    console.warn("getNexusBindings");
     return {
       router: [this.getNexus().local, "/router"],
       info: [this.getNexus().remote, "/info"] };
   },
 
   render: function render() {
-    console.warn("this.state", this.state);
     var info = this.state.info;
     var router = this.state.router;
     return React.createElement(
@@ -68,11 +55,9 @@ var AppClass = React.createClass({
         null,
         "The server is named ",
         info ? info.get("name") : null,
-        ",",
-        "its clock show ",
+        ", its clock shows ",
         info ? info.get("clock") : null,
-        ",",
-        "and there are currently ",
+        ", and there are currently ",
         info ? info.get("connected") : null,
         " connected clients."
       ),
@@ -80,12 +65,12 @@ var AppClass = React.createClass({
         "ul",
         null,
         "The current routes are:",
-        router && router.get("routes") ? router.get("routes").forEach(function (_ref2, k) {
-          var title = _ref2.title;
-          var description = _ref2.description;
-          var query = _ref2.query;
-          var params = _ref2.params;
-          var hash = _ref2.hash;
+        router && router.get("routes") ? router.get("routes").map(function (_ref, k) {
+          var title = _ref.title;
+          var description = _ref.description;
+          var query = _ref.query;
+          var params = _ref.params;
+          var hash = _ref.hash;
           return React.createElement(
             "li",
             { key: k },
@@ -100,18 +85,21 @@ var AppClass = React.createClass({
   },
 
   statics: {
-    router: (function () {
-      var router = new Router();
-      var tagRoute = function (title, description) {
-        return function (query, params, hash) {
-          title, description, query, params, hash;
-        };
-      };
-      router.on("/", tagRoute("Home", "The homepage of my application"));
-      router.on("/about", tagRoute("About", "Where I explain what my application does"));
-      router.on("/contact", tagRoute("Contact", "You can contact us here"));
-      return router;
-    })(),
+    styles: {
+      "*": {
+        boxSizing: "border-box" } },
+
+    getRoutes: function getRoutes(_ref2) {
+      var req = _ref2.req;
+      var window = _ref2.window;
+      var url = _ref2.url;
+      var href = url ? url : req ? req.url : window ? (window.location || window.history.location).href : null;
+      var _parse = parse(href);
+
+      var path = _parse.path;
+      var hash = _parse.hash;
+      return router.route("" + path + "" + (hash ? hash : ""));
+    },
 
     createNexus: function createNexus(_ref3, clientID, lifespan) {
       var req = _ref3.req;
@@ -142,13 +130,12 @@ var AppClass = React.createClass({
         nexus.remote.lifespan.release();
       });
 
-      var router = AppClass.router;
       var routerStore = localFluxServer.Store("/router", lifespan);
 
       localFluxServer.Action("/router/navigate", lifespan).onDispatch(function (_ref4) {
         var url = _ref4.url;
         if (__NODE__) {
-          return routerStore.set("routes", router.route(url)).commit();
+          return routerStore.set("routes", App.getRoutes({ url: url })).commit();
         }
         if (__BROWSER__) {
           return window.history.pushState(null, null, url);
@@ -158,22 +145,25 @@ var AppClass = React.createClass({
       if (__BROWSER__) {
         (function () {
           var updateMetaTags = function () {
-            var meta = AppClass.getMeta({ window: window });
-            var title = window.document.getElementsByTagName("title")[0];
-            if (title) {
-              title.textContent = meta.title;
+            var _App$getMeta = App.getMeta({ window: window });
+
+            var title = _App$getMeta.title;
+            var description = _App$getMeta.description;
+            var titleTag = window.document.getElementsByTagName("title")[0];
+            if (titleTag) {
+              titleTag.textContent = title;
             }
             if (window.document.querySelector) {
-              var description = window.document.querySelector("meta[name=description]");
-              if (description) {
-                description.textContent = meta.description;
+              var descriptionTag = window.document.querySelector("meta[name=description]");
+              if (descriptionTag) {
+                descriptionTag.textContent = description;
               }
             }
           };
 
           var ln = function () {
             updateMetaTags();
-            routerStore.set("routes", router.route(getFullpath(window))).commit();
+            routerStore.set("routes", App.getRoutes({ window: window })).commit();
           };
           window.addEventListener("popstate", ln);
           lifespan.onRelease(function () {
@@ -183,8 +173,7 @@ var AppClass = React.createClass({
         })();
       }
 
-      routerStore.set("routes", router.route(getFullpath({ req: req, window: window }))).commit();
-      console.warn(routerStore);
+      routerStore.set("routes", App.getRoutes({ req: req, window: window })).commit();
 
       return nexus;
     },
@@ -192,11 +181,7 @@ var AppClass = React.createClass({
     getMeta: function getMeta(_ref5) {
       var req = _ref5.req;
       var window = _ref5.window;
-      var routes = AppClass.router.route(url);
-      if (routes.length > 1) {
-        return routes[0];
-      }
-      return "Not found";
+      return App.getRoutes({ req: req, window: window })[0];
     } } });
 
-module.exports = AppClass;
+module.exports = App;
