@@ -18,4 +18,6 @@ module.exports = {
   flux: {
     protocol: "http",
     hostname: "localhost",
-    port: 8080 } };
+    port: 8080 },
+  analytics: {
+    UA: "UA-XXXXX-X" } };

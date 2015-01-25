@@ -32,6 +32,6 @@ server.on("link:add", function () {
 
 server.lifespan.setInterval(function () {
   return info.set("clock", Date.now()).commit();
-}, 100);
+}, 187);
 
 console.log("flux-server listening on port", port);

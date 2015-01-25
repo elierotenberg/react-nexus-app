@@ -11,6 +11,6 @@ info.set('name', 'React Nexus App')
 server.on('link:add', () => info.set('connected', info.working.get('connected') + 1).commit(), server.lifespan)
 .on('link:remove', () => info.set('connected', info.working.get('connected') - 1).commit(), server.lifespan);
 
-server.lifespan.setInterval(() => info.set('clock', Date.now()).commit(), 100);
+server.lifespan.setInterval(() => info.set('clock', Date.now()).commit(), 187);
 
 console.log('flux-server listening on port', port);

@@ -27,5 +27,7 @@ var App = React.createFactory(AppClass);
 var INT_MAX = 9007199254740992;
 
 var lifespan = new Lifespan();
-Nexus.mountApp(App(), AppClass.createNexus({ window: window }, window.reactNexusClientID || _.uniqueId("Client" + _.random(1, INT_MAX - 1)), lifespan), window.reactNexusData || {}, document.getElementById("app-root"));
+var nexus = AppClass.createNexus({ window: window }, window.reactNexusClientID || _.uniqueId("Client" + _.random(1, INT_MAX - 1)), lifespan);
+Nexus.mountApp(App({ nexus: nexus }), // pass nexus as a prop to make it accessible in the devtools
+nexus, window.reactNexusData || {}, document.getElementById("app-root"));
 window.addEventListener("close", lifespan.release);

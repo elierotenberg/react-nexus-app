@@ -7,4 +7,7 @@ export default {
     hostname: 'localhost',
     port: 8080,
   },
+  analytics: {
+    UA: 'UA-XXXXX-X',
+  },
 };
