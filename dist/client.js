@@ -20,14 +20,13 @@ var Lifespan = _interopRequire(require("lifespan"));
 
 var Nexus = _interopRequire(require("react-nexus"));
 
-var AppClass = _interopRequire(require("./components/App"));
+var App = _interopRequire(require("./components/App"));
 
 var React = Nexus.React;
-var App = React.createFactory(AppClass);
 var INT_MAX = 9007199254740992;
 
 var lifespan = new Lifespan();
-var nexus = AppClass.createNexus({ window: window }, window.reactNexusClientID || _.uniqueId("Client" + _.random(1, INT_MAX - 1)), lifespan);
-Nexus.mountApp(App({ nexus: nexus }), // pass nexus as a prop to make it accessible in the devtools
+var nexus = App.createNexus({ window: window }, window.reactNexusClientID || _.uniqueId("Client" + _.random(1, INT_MAX - 1)), lifespan);
+Nexus.mountApp(React.createElement(App, { nexus: nexus }), // pass nexus as a prop to make it accessible in the devtools
 nexus, window.reactNexusData || {}, document.getElementById("app-root"));
 window.addEventListener("close", lifespan.release);

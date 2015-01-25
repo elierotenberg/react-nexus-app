@@ -4,24 +4,55 @@ import LocalFlux from 'nexus-flux/adapters/Local';
 import RemoteFluxClient from 'nexus-flux-socket.io/client';
 import { parse, format } from 'url';
 
-import { flux } from '../config';
+import config from '../config';
 import router from '../router';
 
-const { protocol, hostname, port } = flux;
+const { protocol, hostname, port } = config.flux;
 const fluxURL = format({ protocol, hostname, port });
 
 const App = React.createClass({
-  mixins: [Mixin],
+  mixins: [Lifespan.Mixin, Mixin],
+
+  getInitialState() {
+    return {
+      clicks: 0,
+    };
+  },
 
   getNexusBindings() {
     return {
       router: [this.getNexus().local, '/router'],
+      localClicks: [this.getNexus().local, '/clicks'],
       info: [this.getNexus().remote, '/info'],
+      remoteClicks: [this.getNexus().remote, '/clicks'],
     };
   },
 
+  increaseClicks() {
+    this.setState({ clicks: this.state.clicks + 1 });
+  },
+
+  componentDidMount() {
+    this.increaseLocalClicksAction = this.getNexus().local.Action('/clicks/increase', this.getLifespan());
+    this.increaseRemoteClicksAction = this.getNexus().remote.Action('/clicks/increase', this.getLifespan());
+  },
+
+  increaseLocalClicks() {
+    this.increaseLocalClicksAction.dispatch();
+  },
+
+  increaseRemoteClicks() {
+    this.increaseRemoteClicksAction.dispatch();
+  },
+
   render() {
-    const { info, router } = this.state;
+    const {
+      clicks,
+      info,
+      localClicks,
+      router,
+      remoteClicks,
+    } = this.state;
     return <div>
       <div>
         The server is named {info ? info.get('name') : null}, its clock shows {info ? info.get('clock') : null}, and there are currently {info ? info.get('connected') : null} connected clients.
@@ -31,6 +62,9 @@ const App = React.createClass({
           <li key={k}>{title} ({JSON.stringify({ description, query, params, hash })})</li>
         ) : null}
       </ul>
+      <div>State clicks: {clicks} <button onClick={this.increaseClicks}>increase</button></div>
+      <div>Local clicks: {localClicks.get('count')} <button onClick={this.increaseLocalClicks}>increase</button></div>
+      <div>Remote clicks: {remoteClicks.get('count')} <button onClick={this.increaseRemoteClicks}>increase</button></div>
     </div>;
   },
 
@@ -49,77 +83,71 @@ const App = React.createClass({
       return router.route(`${path}${hash ? hash : ''}`);
     },
 
-    createNexus({ req, window }, clientID, lifespan) {
+    updateMetaDOMNodes(window) {
       if(__DEV__) {
-        clientID.should.be.a.String;
-        lifespan.should.be.an.instanceOf(Lifespan);
-        if(__NODE__) {
-          req.should.be.an.Object;
-        }
-        if(__BROWSER__) {
-          window.should.be.an.Object;
-        }
-        if(req !== void 0) {
-          __NODE__.should.be.true;
-        }
-        if(window !== void 0) {
-          __BROWSER__.should.be.true;
-        }
+        __BROWSER__.should.be.true;
       }
-      const localFluxServer = new LocalFlux.Server();
-      const nexus = {
-        local: new LocalFlux.Client(localFluxServer, clientID),
-        remote: new RemoteFluxClient(fluxURL, clientID),
-      };
-      lifespan.onRelease(() => {
-        localFluxServer.lifespan.release();
-        nexus.local.lifespan.release();
-        nexus.remote.lifespan.release();
-      });
-
-      const routerStore = localFluxServer.Store('/router', lifespan);
-
-      localFluxServer.Action('/router/navigate', lifespan)
-      .onDispatch(({ url }) => {
-        if(__NODE__) {
-          return routerStore.set('routes', App.getRoutes({ url })).commit();
-        }
-        if(__BROWSER__) {
-          return window.history.pushState(null, null, url);
-        }
-      });
-
-      if(__BROWSER__) {
-        function updateMetaTags() {
-          const { title, description } = App.getMeta({ window });
-          const titleTag = window.document.getElementsByTagName('title')[0];
-          if(titleTag) {
-            titleTag.textContent = title;
-          }
-          if(window.document.querySelector) {
-            const descriptionTag = window.document.querySelector('meta[name=description]');
-            if(descriptionTag) {
-              descriptionTag.textContent = description;
-            }
-          }
-        }
-
-        const ln = () => {
-          updateMetaTags();
-          routerStore.set('routes', App.getRoutes({ window })).commit();
-        };
-        window.addEventListener('popstate', ln);
-        lifespan.onRelease(() => window.removeEventListener('popstate', ln));
-        updateMetaTags();
+      const { title, description } = App.getRoutes({ window })[0];
+      const titleDOMNode = window.document.querySelector('title');
+      if(titleDOMNode !== null) {
+        titleDOMNode.textContent = title;
       }
-
-      routerStore.set('routes', App.getRoutes({ req, window })).commit();
-
-      return nexus;
+      const descriptionDOMNode = window.document.querySelector('meta[name=description]');
+      if(descriptionDOMNode !== null) {
+        descriptionDOMNode.setAttribute('content', description);
+      }
     },
 
-    getMeta({ req, window }) {
-      return App.getRoutes({ req, window })[0];
+    createLocalFlux({ req, window }, clientID, lifespan) {
+      const server = new LocalFlux.Server();
+      lifespan.onRelease(server.lifespan.release);
+      const local = new LocalFlux.Client(server, clientID);
+      lifespan.onRelease(local.lifespan.release);
+
+      // Stores
+      const routerStore = server.Store('/router', lifespan);
+      routerStore.set('routes', App.getRoutes({ req, window })).commit();
+      const clicksStore = server.Store('/clicks', lifespan);
+      clicksStore.set('count', 0).commit();
+
+      // Actions
+      server.Action('/router/navigate', lifespan).onDispatch(({ url }) => {
+        if(__BROWSER__) { // if in the browser, defer to popstate handler
+          window.history.pushState(null, null, url);
+        }
+        if(__NODE__) { // if in node, handle directly
+          routerStore.set('routes', App.getRoutes({ url })).commit();
+        }
+      });
+      server.Action('/clicks/increase', lifespan).onDispatch(() => {
+        clicksStore.set('count', clicksStore.working.get('count') + 1).commit()
+      });
+
+      // Browser-only behaviour
+      if(__BROWSER__) {
+        function handlePopState() {
+          App.updateMetaDOMNodes({ window });
+          routerStore.set('routes', App.getRoutes({ window })).commit();
+        }
+        window.addEventListener('popstate', handlePopState);
+        lifespan.onRelease(() => window.removeEventListener('popstate', handlePopState));
+      }
+
+      return local;
+    },
+
+    createRemoteFlux({ req, window }, clientID, lifespan) {
+      const remote = new RemoteFluxClient(fluxURL, clientID);
+      lifespan.onRelease(remote.lifespan.release);
+
+      return remote;
+    },
+
+    createNexus({ req, window }, clientID, lifespan) {
+      return {
+        local: App.createLocalFlux({ req, window }, clientID, lifespan),
+        remote: App.createRemoteFlux({ req, window }, clientID, lifespan),
+      };
     },
   },
 });

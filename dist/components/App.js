@@ -26,27 +26,55 @@ var RemoteFluxClient = _interopRequire(require("nexus-flux-socket.io/client"));
 
 var parse = require("url").parse;
 var format = require("url").format;
-var flux = require("../config").flux;
+var config = _interopRequire(require("../config"));
+
 var router = _interopRequire(require("../router"));
 
-var protocol = flux.protocol;
-var hostname = flux.hostname;
-var port = flux.port;
+var protocol = config.flux.protocol;
+var hostname = config.flux.hostname;
+var port = config.flux.port;
 var fluxURL = format({ protocol: protocol, hostname: hostname, port: port });
 
 var App = React.createClass({
   displayName: "App",
-  mixins: [Mixin],
+  mixins: [Lifespan.Mixin, Mixin],
+
+  getInitialState: function getInitialState() {
+    return {
+      clicks: 0 };
+  },
 
   getNexusBindings: function getNexusBindings() {
     return {
       router: [this.getNexus().local, "/router"],
-      info: [this.getNexus().remote, "/info"] };
+      localClicks: [this.getNexus().local, "/clicks"],
+      info: [this.getNexus().remote, "/info"],
+      remoteClicks: [this.getNexus().remote, "/clicks"] };
+  },
+
+  increaseClicks: function increaseClicks() {
+    this.setState({ clicks: this.state.clicks + 1 });
+  },
+
+  componentDidMount: function componentDidMount() {
+    this.increaseLocalClicksAction = this.getNexus().local.Action("/clicks/increase", this.getLifespan());
+    this.increaseRemoteClicksAction = this.getNexus().remote.Action("/clicks/increase", this.getLifespan());
+  },
+
+  increaseLocalClicks: function increaseLocalClicks() {
+    this.increaseLocalClicksAction.dispatch();
+  },
+
+  increaseRemoteClicks: function increaseRemoteClicks() {
+    this.increaseRemoteClicksAction.dispatch();
   },
 
   render: function render() {
+    var clicks = this.state.clicks;
     var info = this.state.info;
+    var localClicks = this.state.localClicks;
     var router = this.state.router;
+    var remoteClicks = this.state.remoteClicks;
     return React.createElement(
       "div",
       null,
@@ -80,6 +108,42 @@ var App = React.createClass({
             ")"
           );
         }) : null
+      ),
+      React.createElement(
+        "div",
+        null,
+        "State clicks: ",
+        clicks,
+        " ",
+        React.createElement(
+          "button",
+          { onClick: this.increaseClicks },
+          "increase"
+        )
+      ),
+      React.createElement(
+        "div",
+        null,
+        "Local clicks: ",
+        localClicks.get("count"),
+        " ",
+        React.createElement(
+          "button",
+          { onClick: this.increaseLocalClicks },
+          "increase"
+        )
+      ),
+      React.createElement(
+        "div",
+        null,
+        "Remote clicks: ",
+        remoteClicks.get("count"),
+        " ",
+        React.createElement(
+          "button",
+          { onClick: this.increaseRemoteClicks },
+          "increase"
+        )
       )
     );
   },
@@ -101,87 +165,85 @@ var App = React.createClass({
       return router.route("" + path + "" + (hash ? hash : ""));
     },
 
-    createNexus: function createNexus(_ref3, clientID, lifespan) {
+    updateMetaDOMNodes: function updateMetaDOMNodes(window) {
+      if (__DEV__) {
+        __BROWSER__.should.be["true"];
+      }
+      var title = App.getRoutes({ window: window })[0].title;
+      var description = App.getRoutes({ window: window })[0].description;
+      var titleDOMNode = window.document.querySelector("title");
+      if (titleDOMNode !== null) {
+        titleDOMNode.textContent = title;
+      }
+      var descriptionDOMNode = window.document.querySelector("meta[name=description]");
+      if (descriptionDOMNode !== null) {
+        descriptionDOMNode.setAttribute("content", description);
+      }
+    },
+
+    createLocalFlux: function createLocalFlux(_ref3, clientID, lifespan) {
       var req = _ref3.req;
       var window = _ref3.window;
-      if (__DEV__) {
-        clientID.should.be.a.String;
-        lifespan.should.be.an.instanceOf(Lifespan);
-        if (__NODE__) {
-          req.should.be.an.Object;
-        }
-        if (__BROWSER__) {
-          window.should.be.an.Object;
-        }
-        if (req !== void 0) {
-          __NODE__.should.be["true"];
-        }
-        if (window !== void 0) {
-          __BROWSER__.should.be["true"];
-        }
-      }
-      var localFluxServer = new LocalFlux.Server();
-      var nexus = {
-        local: new LocalFlux.Client(localFluxServer, clientID),
-        remote: new RemoteFluxClient(fluxURL, clientID) };
-      lifespan.onRelease(function () {
-        localFluxServer.lifespan.release();
-        nexus.local.lifespan.release();
-        nexus.remote.lifespan.release();
-      });
+      var server = new LocalFlux.Server();
+      lifespan.onRelease(server.lifespan.release);
+      var local = new LocalFlux.Client(server, clientID);
+      lifespan.onRelease(local.lifespan.release);
 
-      var routerStore = localFluxServer.Store("/router", lifespan);
+      // Stores
+      var routerStore = server.Store("/router", lifespan);
+      routerStore.set("routes", App.getRoutes({ req: req, window: window })).commit();
+      var clicksStore = server.Store("/clicks", lifespan);
+      clicksStore.set("count", 0).commit();
 
-      localFluxServer.Action("/router/navigate", lifespan).onDispatch(function (_ref4) {
+      // Actions
+      server.Action("/router/navigate", lifespan).onDispatch(function (_ref4) {
         var url = _ref4.url;
-        if (__NODE__) {
-          return routerStore.set("routes", App.getRoutes({ url: url })).commit();
-        }
         if (__BROWSER__) {
-          return window.history.pushState(null, null, url);
+          // if in the browser, defer to popstate handler
+          window.history.pushState(null, null, url);
+        }
+        if (__NODE__) {
+          // if in node, handle directly
+          routerStore.set("routes", App.getRoutes({ url: url })).commit();
         }
       });
+      server.Action("/clicks/increase", lifespan).onDispatch(function () {
+        clicksStore.set("count", clicksStore.working.get("count") + 1).commit();
+      });
 
+      // Browser-only behaviour
       if (__BROWSER__) {
         (function () {
-          var updateMetaTags = function () {
-            var _App$getMeta = App.getMeta({ window: window });
-
-            var title = _App$getMeta.title;
-            var description = _App$getMeta.description;
-            var titleTag = window.document.getElementsByTagName("title")[0];
-            if (titleTag) {
-              titleTag.textContent = title;
-            }
-            if (window.document.querySelector) {
-              var descriptionTag = window.document.querySelector("meta[name=description]");
-              if (descriptionTag) {
-                descriptionTag.textContent = description;
-              }
-            }
-          };
-
-          var ln = function () {
-            updateMetaTags();
+          var handlePopState = function () {
+            App.updateMetaDOMNodes({ window: window });
             routerStore.set("routes", App.getRoutes({ window: window })).commit();
           };
-          window.addEventListener("popstate", ln);
+
+          window.addEventListener("popstate", handlePopState);
           lifespan.onRelease(function () {
-            return window.removeEventListener("popstate", ln);
+            return window.removeEventListener("popstate", handlePopState);
           });
-          updateMetaTags();
         })();
       }
 
-      routerStore.set("routes", App.getRoutes({ req: req, window: window })).commit();
-
-      return nexus;
+      return local;
     },
 
-    getMeta: function getMeta(_ref5) {
+    createRemoteFlux: function createRemoteFlux(_ref5, clientID, lifespan) {
       var req = _ref5.req;
       var window = _ref5.window;
-      return App.getRoutes({ req: req, window: window })[0];
+      var remote = new RemoteFluxClient(fluxURL, clientID);
+      lifespan.onRelease(remote.lifespan.release);
+
+      return remote;
+    },
+
+    createNexus: function createNexus(_ref6, clientID, lifespan) {
+      var req = _ref6.req;
+      var window = _ref6.window;
+      return {
+        local: App.createLocalFlux({ req: req, window: window }, clientID, lifespan),
+        remote: App.createRemoteFlux({ req: req, window: window }, clientID, lifespan) };
     } } });
 
 module.exports = App;

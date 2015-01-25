@@ -5,10 +5,9 @@ import Nexus from 'react-nexus';
 import jsesc from 'jsesc';
 
 import { render, analytics } from './config';
-import AppClass from './components/App';
+import App from './components/App';
 
 const { React } = Nexus;
-const App = React.createFactory(AppClass);
 const { port } = render;
 const INT_MAX = 9007199254740992;
 
@@ -18,11 +17,11 @@ express()
 .get('*', (req, res) => {
   const clientID = _.uniqueId(`Client${_.random(1, INT_MAX - 1)}`);
   const lifespan = new Lifespan();
-  const nexus = AppClass.createNexus({ req }, clientID, lifespan);
-  Nexus.prerenderApp(App({ nexus }), nexus) // pass nexus as a prop to make it visible in the devtools
+  const nexus = App.createNexus({ req }, clientID, lifespan);
+  Nexus.prerenderApp(<App nexus={nexus} />, nexus) // pass nexus as a prop to make it visible in the devtools
   .then(([html, data]) => {
     lifespan.release();
-    const { title, description } = AppClass.getMeta({ req });
+    const { title, description } = App.getRoutes({ req })[0];
     res.status(200).send(`<!doctype html lang='en-US'>
 <html>
 <head>
@@ -30,6 +29,7 @@ express()
   <meta charset='X-UA-Compatible' content='IE=edge'>
   <title>${jsesc(title)}</title>
   <meta name='description' content='${jsesc(description)}'>
+  <meta name='viewport' content='width=device-width, initial-scale=1'>
   <link rel='icon' href='/favicon.ico' type='image/x-icon'>
   <link rel='stylesheet' href='//cdnjs.cloudflare.com/ajax/libs/normalize/3.0.2/normalize.min.css'>
   <link rel='stylesheet' href='/c.css'>

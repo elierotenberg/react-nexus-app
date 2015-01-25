@@ -47,9 +47,9 @@
     "jsesc": "^0.5.0",
     "lifespan": "^2.7.1",
     "lodash": "^2.4.1",
-    "nexus-flux": "^1.5.7",
-    "nexus-flux-socket.io": "^0.3.16",
-    "react-nexus": "^2.2.4",
+    "nexus-flux": "^1.5.9",
+    "nexus-flux-socket.io": "^0.3.18",
+    "react-nexus": "^2.4.1",
     "serve-favicon": "^2.2.0",
     "should": "^4.6.1"
   }

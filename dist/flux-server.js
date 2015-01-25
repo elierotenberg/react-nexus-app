@@ -22,14 +22,25 @@ var flux = require("./config").flux;
 var port = flux.port;
 var server = new RemoteFluxServer(port);
 
+// Stores
 var info = server.Store("/info", server.lifespan);
 info.set("name", "React Nexus App").set("clock", Date.now()).set("connected", 0).commit();
+
+var clicks = server.Store("/clicks", server.lifespan);
+clicks.set("count", 0).commit();
+
+// Actions
+server.Action("/clicks/increase", server.lifespan).onDispatch(function () {
+  return clicks.set("count", clicks.working.get("count") + 1).commit();
+});
+
 server.on("link:add", function () {
   return info.set("connected", info.working.get("connected") + 1).commit();
 }, server.lifespan).on("link:remove", function () {
   return info.set("connected", info.working.get("connected") - 1).commit();
 }, server.lifespan);
 
+// Background jobs
 server.lifespan.setInterval(function () {
   return info.set("clock", Date.now()).commit();
 }, 187);
