@@ -31,12 +31,12 @@ express()
   <meta name='description' content='${jsesc(description)}'>
   <meta name='viewport' content='width=device-width, initial-scale=1'>
   <link rel='icon' href='/favicon.ico' type='image/x-icon'>
-  <link rel='stylesheet' href='//cdnjs.cloudflare.com/ajax/libs/normalize/3.0.2/normalize.min.css'>
+  <link rel='stylesheet' href='/normalize.min.css'>
   <link rel='stylesheet' href='/c.css'>
   </head>
 <body>
   <div id='app-root'>${html}</div>
-  <script src='//cdnjs.cloudflare.com/ajax/libs/json2/20140204/json2.min.js'></script>
+  <script src='/json2.min.js'></script>
   <script>
     window.reactNexusData = JSON.parse('${jsesc(JSON.stringify(data))}');
     window.reactNexusClientID = '${jsesc(clientID)}';</script>

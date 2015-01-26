@@ -39,14 +39,14 @@ function clean(fn) {
 }
 
 function lint() {
-  return gulp.src('src/**/*.js')
+  return gulp.src(['src/**/*.js', '!src/public/**/*.js'])
   .pipe(plumber())
   .pipe(jshint())
   .pipe(jshint.reporter(stylish));
 }
 
 function build() {
-  return gulp.src(['src/**/*.js', 'src/**/*.jsx'])
+  return gulp.src(['src/**/*.js', 'src/**/*.jsx', '!src/public/**/*.js'])
     .pipe(plumber())
     .pipe(prepend(prelude))
     .pipe(es6to5({

@@ -2,13 +2,15 @@ import Router from 'isomorphic-router';
 
 const router = new Router();
 
-function route(title, description) {
-  return (query, params, hash) => ({ title, description, query, params, hash });
-}
-
-router.on('/', route('Home', 'The homepage of my application'));
-router.on('/about', route('About', 'Where I explain what my application does'));
-router.on('/contact', route('Contact', 'You can contact us here'));
-router.on('(.*)', route('Not found', 'Page not found'));
+[
+// patterns are matched from top to bottom.
+// pattern      title         description
+  ['/',         'Home',      'The homepage of my application'],
+  ['/about',    'About',     'Where I explain what my application does'],
+  ['/contact',  'Contact',   'You can contact us here'],
+  ['(.*)',      'Not found', 'Page not found'],
+].forEach(([pattern, title, description]) =>
+  router.on(pattern, (query, params, hash) => ({ title, description, query, params, hash }))
+);
 
 export default router;
