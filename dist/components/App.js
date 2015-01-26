@@ -18,14 +18,19 @@ if (__DEV__) {
 }
 var Lifespan = _interopRequire(require("lifespan"));
 
-var React = require("react-nexus").React;
-var Mixin = require("react-nexus").Mixin;
+var Nexus = _interopRequire(require("react-nexus"));
+
 var LocalFlux = _interopRequire(require("nexus-flux/adapters/Local"));
 
 var RemoteFluxClient = _interopRequire(require("nexus-flux-socket.io/client"));
 
 var parse = require("url").parse;
 var format = require("url").format;
+var AnimateMixin = _interopRequire(require("react-animate"));
+
+var React = Nexus.React;
+var NexusMixin = Nexus.Mixin;
+
 var config = _interopRequire(require("../config"));
 
 var router = _interopRequire(require("../router"));
@@ -37,7 +42,7 @@ var fluxURL = format({ protocol: protocol, hostname: hostname, port: port });
 
 var App = React.createClass({
   displayName: "App",
-  mixins: [Lifespan.Mixin, Mixin],
+  mixins: [Lifespan.Mixin, AnimateMixin, NexusMixin],
 
   getInitialState: function getInitialState() {
     return {
@@ -69,6 +74,10 @@ var App = React.createClass({
     this.increaseRemoteClicksAction.dispatch();
   },
 
+  fadeOut: function fadeOut() {
+    this.animate("fade-out", { opacity: 1 }, { opacity: 0 }, 2000, { easing: "cubic-in-out" });
+  },
+
   render: function render() {
     var clicks = this.state.clicks;
     var info = this.state.info;
@@ -85,7 +94,10 @@ var App = React.createClass({
         info ? info.get("name") : null,
         ", its clock shows ",
         info ? info.get("clock") : null,
-        ", and there are currently ",
+        " (lagging of ",
+        info ? Date.now() - info.get("clock") : null,
+        "),",
+        "and there are currently ",
         info ? info.get("connected") : null,
         " connected clients."
       ),
@@ -143,6 +155,21 @@ var App = React.createClass({
           "button",
           { onClick: this.increaseRemoteClicks },
           "increase"
+        )
+      ),
+      React.createElement(
+        "div",
+        null,
+        React.createElement(
+          "span",
+          { style: this.getAnimatedStyle("fade-out") },
+          "This sentence will disappear"
+        ),
+        " ",
+        React.createElement(
+          "button",
+          { onClick: this.fadeOut },
+          "fade out"
         )
       )
     );

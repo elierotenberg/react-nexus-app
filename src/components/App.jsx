@@ -1,8 +1,11 @@
 import Lifespan from 'lifespan';
-import { React, Mixin } from 'react-nexus';
+import Nexus from 'react-nexus';
 import LocalFlux from 'nexus-flux/adapters/Local';
 import RemoteFluxClient from 'nexus-flux-socket.io/client';
 import { parse, format } from 'url';
+import AnimateMixin from 'react-animate';
+const { React } = Nexus;
+const NexusMixin = Nexus.Mixin;
 
 import config from '../config';
 import router from '../router';
@@ -11,7 +14,7 @@ const { protocol, hostname, port } = config.flux;
 const fluxURL = format({ protocol, hostname, port });
 
 const App = React.createClass({
-  mixins: [Lifespan.Mixin, Mixin],
+  mixins: [Lifespan.Mixin, AnimateMixin, NexusMixin],
 
   getInitialState() {
     return {
@@ -45,6 +48,16 @@ const App = React.createClass({
     this.increaseRemoteClicksAction.dispatch();
   },
 
+  fadeOut() {
+    this.animate(
+      'fade-out',
+      { opacity: 1 },
+      { opacity: 0 },
+      2000,
+      { easing: 'cubic-in-out' }
+    );
+  },
+
   render() {
     const {
       clicks,
@@ -55,7 +68,8 @@ const App = React.createClass({
     } = this.state;
     return <div>
       <div>
-        The server is named {info ? info.get('name') : null}, its clock shows {info ? info.get('clock') : null}, and there are currently {info ? info.get('connected') : null} connected clients.
+        The server is named {info ? info.get('name') : null}, its clock shows {info ? info.get('clock') : null} (lagging of {info ? Date.now() - info.get('clock') : null}),
+        and there are currently {info ? info.get('connected') : null} connected clients.
       </div>
       <ul>The current routes are:
         {router && router.get('routes') ? router.get('routes').map(({ title, description, query, params, hash }, k) =>
@@ -65,6 +79,7 @@ const App = React.createClass({
       <div>State clicks: {clicks} <button onClick={this.increaseClicks}>increase</button></div>
       <div>Local clicks: {localClicks.get('count')} <button onClick={this.increaseLocalClicks}>increase</button></div>
       <div>Remote clicks: {remoteClicks.get('count')} <button onClick={this.increaseRemoteClicks}>increase</button></div>
+      <div><span style={this.getAnimatedStyle('fade-out')}>This sentence will disappear</span> <button onClick={this.fadeOut}>fade out</button></div>
     </div>;
   },
 

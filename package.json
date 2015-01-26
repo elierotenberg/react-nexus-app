@@ -40,15 +40,16 @@
   },
   "dependencies": {
     "6to5": "^2.13.7",
-    "bluebird": "^2.9.1",
+    "bluebird": "^2.9.2",
     "express": "^4.11.1",
     "html5-history-api": "^4.2.0",
     "isomorphic-router": "^1.1.0",
     "jsesc": "^0.5.0",
     "lifespan": "^2.7.1",
-    "lodash": "^2.4.1",
+    "lodash": "^3.0.0",
     "nexus-flux": "^1.5.9",
     "nexus-flux-socket.io": "^0.3.18",
+    "react-animate": "^1.0.1",
     "react-nexus": "^2.4.1",
     "serve-favicon": "^2.2.0",
     "should": "^4.6.1"
