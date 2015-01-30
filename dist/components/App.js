@@ -2,6 +2,8 @@
 
 var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
 
+var _slicedToArray = function (arr, i) { if (Array.isArray(arr)) { return arr; } else { var _arr = []; for (var _iterator = arr[Symbol.iterator](), _step; !(_step = _iterator.next()).done;) { _arr.push(_step.value); if (i && _arr.length === i) break; } return _arr; } };
+
 require("6to5/polyfill");
 var _ = require("lodash");
 var should = require("should");
@@ -18,27 +20,22 @@ var Lifespan = _interopRequire(require("lifespan"));
 
 var Nexus = _interopRequire(require("react-nexus"));
 
-var LocalFlux = _interopRequire(require("nexus-flux/adapters/Local"));
-
-var RemoteFluxClient = _interopRequire(require("nexus-flux-socket.io/client"));
-
-var _url = require("url");
-
-var parse = _url.parse;
-var format = _url.format;
 var AnimateMixin = _interopRequire(require("react-animate"));
 
 var React = Nexus.React;
 var NexusMixin = Nexus.Mixin;
 
-var config = _interopRequire(require("../config"));
+var statics = _interopRequire(require("../statics"));
 
-var router = _interopRequire(require("../router"));
+var Link = _interopRequire(require("./Link"));
 
-var protocol = config.flux.protocol;
-var hostname = config.flux.hostname;
-var port = config.flux.port;
-var fluxURL = format({ protocol: protocol, hostname: hostname, port: port });
+var Home = _interopRequire(require("./Home"));
+
+var About = _interopRequire(require("./About"));
+
+var Contact = _interopRequire(require("./Contact"));
+
+var Default = _interopRequire(require("./Default"));
 
 var App = React.createClass({
   displayName: "App",
@@ -84,6 +81,20 @@ var App = React.createClass({
     var localClicks = this.state.localClicks;
     var router = this.state.router;
     var remoteClicks = this.state.remoteClicks;
+    var _ref = info ? [info.get("name"), info.get("clock"), info.get("connected")] : [null, null, null];
+    var _ref2 = _slicedToArray(_ref, 3);
+
+    var name = _ref2[0];
+    var clock = _ref2[1];
+    var connected = _ref2[2];
+    var routes = router ? router.get("routes") : [];
+    var _ref3 = routes[0] || {};
+    var title = _ref3.title;
+    var description = _ref3.description;
+    var lClicks = localClicks ? localClicks.get("count") : null;
+    var rClicks = remoteClicks ? remoteClicks.get("count") : null;
+    var animatedStyle = this.getAnimatedStyle("fade-out");
+
     return React.createElement(
       "div",
       null,
@@ -91,26 +102,24 @@ var App = React.createClass({
         "div",
         null,
         "The server is named ",
-        info ? info.get("name") : null,
+        name,
         ", its clock shows ",
-        info ? info.get("clock") : null,
-        " (lagging of ",
-        info ? Date.now() - info.get("clock") : null,
-        "),",
+        clock,
+        ",",
         "and there are currently ",
-        info ? info.get("connected") : null,
+        connected,
         " connected clients."
       ),
       React.createElement(
         "ul",
         null,
         "The current routes are:",
-        router && router.get("routes") ? router.get("routes").map(function (_ref, k) {
-          var title = _ref.title;
-          var description = _ref.description;
-          var query = _ref.query;
-          var params = _ref.params;
-          var hash = _ref.hash;
+        routes.map(function (_ref4, k) {
+          var title = _ref4.title;
+          var description = _ref4.description;
+          var query = _ref4.query;
+          var params = _ref4.params;
+          var hash = _ref4.hash;
           return React.createElement(
             "li",
             { key: k },
@@ -119,7 +128,7 @@ var App = React.createClass({
             JSON.stringify({ description: description, query: query, params: params, hash: hash }),
             ")"
           );
-        }) : null
+        })
       ),
       React.createElement(
         "div",
@@ -137,7 +146,7 @@ var App = React.createClass({
         "div",
         null,
         "Local clicks: ",
-        localClicks.get("count"),
+        lClicks,
         " ",
         React.createElement(
           "button",
@@ -149,7 +158,7 @@ var App = React.createClass({
         "div",
         null,
         "Remote clicks: ",
-        remoteClicks.get("count"),
+        rClicks,
         " ",
         React.createElement(
           "button",
@@ -162,7 +171,7 @@ var App = React.createClass({
         null,
         React.createElement(
           "span",
-          { style: this.getAnimatedStyle("fade-out") },
+          { style: animatedStyle },
           "This sentence will disappear"
         ),
         " ",
@@ -171,105 +180,33 @@ var App = React.createClass({
           { onClick: this.fadeOut },
           "fade out"
         )
+      ),
+      title === "Home" ? React.createElement(Home, null) : title === "About" ? React.createElement(About, null) : title === "Contact" ? React.createElement(Contact, null) : React.createElement(Default, null),
+      React.createElement(
+        "ul",
+        null,
+        [["/", "Home"], ["/about", "About"], ["/contact", "Contact"]].map(function (_ref4) {
+          var _ref42 = _slicedToArray(_ref4, 2);
+
+          var href = _ref42[0];
+          var title = _ref42[1];
+          return React.createElement(
+            "li",
+            { key: href },
+            React.createElement(
+              Link,
+              { href: href },
+              title
+            )
+          );
+        })
       )
     );
   },
 
-  statics: {
+  statics: Object.assign({}, statics, {
     styles: {
       "*": {
-        boxSizing: "border-box" } },
-
-    getRoutes: function getRoutes(_ref) {
-      var req = _ref.req;
-      var window = _ref.window;
-      var url = _ref.url;
-      var href = url ? url : req ? req.url : window ? (window.location || window.history.location).href : null;
-      var _parse = parse(href);
-
-      var path = _parse.path;
-      var hash = _parse.hash;
-      return router.route("" + path + "" + (hash ? hash : ""));
-    },
-
-    updateMetaDOMNodes: function updateMetaDOMNodes(window) {
-      if (__DEV__) {
-        __BROWSER__.should.be["true"];
-      }
-      var title = App.getRoutes({ window: window })[0].title;
-      var description = App.getRoutes({ window: window })[0].description;
-      var titleDOMNode = window.document.querySelector("title");
-      if (titleDOMNode !== null) {
-        titleDOMNode.textContent = title;
-      }
-      var descriptionDOMNode = window.document.querySelector("meta[name=description]");
-      if (descriptionDOMNode !== null) {
-        descriptionDOMNode.setAttribute("content", description);
-      }
-    },
-
-    createLocalFlux: function createLocalFlux(_ref, clientID, lifespan) {
-      var req = _ref.req;
-      var window = _ref.window;
-      var server = new LocalFlux.Server();
-      lifespan.onRelease(server.lifespan.release);
-      var local = new LocalFlux.Client(server, clientID);
-      lifespan.onRelease(local.lifespan.release);
-
-      // Stores
-      var routerStore = server.Store("/router", lifespan);
-      routerStore.set("routes", App.getRoutes({ req: req, window: window })).commit();
-      var clicksStore = server.Store("/clicks", lifespan);
-      clicksStore.set("count", 0).commit();
-
-      // Actions
-      server.Action("/router/navigate", lifespan).onDispatch(function (_ref2) {
-        var url = _ref2.url;
-        if (__BROWSER__) {
-          // if in the browser, defer to popstate handler
-          window.history.pushState(null, null, url);
-        }
-        if (__NODE__) {
-          // if in node, handle directly
-          routerStore.set("routes", App.getRoutes({ url: url })).commit();
-        }
-      });
-      server.Action("/clicks/increase", lifespan).onDispatch(function () {
-        clicksStore.set("count", clicksStore.working.get("count") + 1).commit();
-      });
-
-      // Browser-only behaviour
-      if (__BROWSER__) {
-        (function () {
-          var handlePopState = function () {
-            App.updateMetaDOMNodes({ window: window });
-            routerStore.set("routes", App.getRoutes({ window: window })).commit();
-          };
-          window.addEventListener("popstate", handlePopState);
-          lifespan.onRelease(function () {
-            return window.removeEventListener("popstate", handlePopState);
-          });
-        })();
-      }
-
-      return local;
-    },
-
-    createRemoteFlux: function createRemoteFlux(_ref, clientID, lifespan) {
-      var req = _ref.req;
-      var window = _ref.window;
-      var remote = new RemoteFluxClient(fluxURL, clientID);
-      lifespan.onRelease(remote.lifespan.release);
-
-      return remote;
-    },
-
-    createNexus: function createNexus(_ref, clientID, lifespan) {
-      var req = _ref.req;
-      var window = _ref.window;
-      return {
-        local: App.createLocalFlux({ req: req, window: window }, clientID, lifespan),
-        remote: App.createRemoteFlux({ req: req, window: window }, clientID, lifespan) };
-    } } });
+        boxSizing: "border-box" } } }) });
 
 module.exports = App;

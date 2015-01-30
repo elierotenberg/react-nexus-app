@@ -22,6 +22,7 @@ var App = _interopRequire(require("./components/App"));
 
 var React = Nexus.React;
 var INT_MAX = 9007199254740992;
+console.log("client.jsx", Date.now());
 
 var lifespan = new Lifespan();
 var nexus = App.createNexus({ window: window }, window.reactNexusClientID || _.uniqueId("Client" + _.random(1, INT_MAX - 1)), lifespan);

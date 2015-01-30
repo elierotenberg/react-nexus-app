@@ -5,6 +5,7 @@ import App from './components/App';
 
 const { React } = Nexus;
 const INT_MAX = 9007199254740992;
+console.log('client.jsx', Date.now());
 
 const lifespan = new Lifespan();
 const nexus = App.createNexus({ window }, window.reactNexusClientID || _.uniqueId(`Client${_.random(1, INT_MAX - 1)}`), lifespan);

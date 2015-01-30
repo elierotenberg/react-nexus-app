@@ -1,17 +1,15 @@
 import Lifespan from 'lifespan';
 import Nexus from 'react-nexus';
-import LocalFlux from 'nexus-flux/adapters/Local';
-import RemoteFluxClient from 'nexus-flux-socket.io/client';
-import { parse, format } from 'url';
 import AnimateMixin from 'react-animate';
 const { React } = Nexus;
 const NexusMixin = Nexus.Mixin;
 
-import config from '../config';
-import router from '../router';
-
-const { protocol, hostname, port } = config.flux;
-const fluxURL = format({ protocol, hostname, port });
+import statics from '../statics';
+import Link from './Link';
+import Home from './Home';
+import About from './About';
+import Contact from './Contact';
+import Default from './Default';
 
 const App = React.createClass({
   mixins: [Lifespan.Mixin, AnimateMixin, NexusMixin],
@@ -66,105 +64,47 @@ const App = React.createClass({
       router,
       remoteClicks,
     } = this.state;
+
+    const [name, clock, connected] = info ? [info.get('name'), info.get('clock'), info.get('connected')] : [null, null, null];
+    const routes = router ? router.get('routes') : [];
+    const { title, description } = routes[0] || {};
+    const lClicks = localClicks ? localClicks.get('count') : null;
+    const rClicks = remoteClicks ? remoteClicks.get('count') : null;
+    const animatedStyle = this.getAnimatedStyle('fade-out');
+
     return <div>
       <div>
-        The server is named {info ? info.get('name') : null}, its clock shows {info ? info.get('clock') : null} (lagging of {info ? Date.now() - info.get('clock') : null}),
-        and there are currently {info ? info.get('connected') : null} connected clients.
+        The server is named {name}, its clock shows {clock},
+        and there are currently {connected} connected clients.
       </div>
       <ul>The current routes are:
-        {router && router.get('routes') ? router.get('routes').map(({ title, description, query, params, hash }, k) =>
+        {routes.map(({ title, description, query, params, hash }, k) =>
           <li key={k}>{title} ({JSON.stringify({ description, query, params, hash })})</li>
-        ) : null}
+        )}
       </ul>
       <div>State clicks: {clicks} <button onClick={this.increaseClicks}>increase</button></div>
-      <div>Local clicks: {localClicks.get('count')} <button onClick={this.increaseLocalClicks}>increase</button></div>
-      <div>Remote clicks: {remoteClicks.get('count')} <button onClick={this.increaseRemoteClicks}>increase</button></div>
-      <div><span style={this.getAnimatedStyle('fade-out')}>This sentence will disappear</span> <button onClick={this.fadeOut}>fade out</button></div>
+      <div>Local clicks: {lClicks} <button onClick={this.increaseLocalClicks}>increase</button></div>
+      <div>Remote clicks: {rClicks} <button onClick={this.increaseRemoteClicks}>increase</button></div>
+      <div><span style={animatedStyle}>This sentence will disappear</span> <button onClick={this.fadeOut}>fade out</button></div>
+      {
+        title === 'Home' ? <Home /> :
+        title === 'About' ? <About /> :
+        title === 'Contact' ? <Contact /> :
+        <Default />
+      }
+      <ul>{[['/', 'Home'], ['/about', 'About'], ['/contact', 'Contact']].map(([href, title]) =>
+        <li key={href}><Link href={href}>{title}</Link></li>
+      )}</ul>
     </div>;
   },
 
-  statics: {
+  statics: Object.assign({}, statics, {
     styles: {
       '*': {
         boxSizing: 'border-box',
       },
     },
-
-    getRoutes({ req, window, url }) {
-      const href = url ? url :
-        req ? req.url :
-        window ? (window.location || window.history.location).href : null;
-      const { path, hash } = parse(href);
-      return router.route(`${path}${hash ? hash : ''}`);
-    },
-
-    updateMetaDOMNodes(window) {
-      if(__DEV__) {
-        __BROWSER__.should.be.true;
-      }
-      const { title, description } = App.getRoutes({ window })[0];
-      const titleDOMNode = window.document.querySelector('title');
-      if(titleDOMNode !== null) {
-        titleDOMNode.textContent = title;
-      }
-      const descriptionDOMNode = window.document.querySelector('meta[name=description]');
-      if(descriptionDOMNode !== null) {
-        descriptionDOMNode.setAttribute('content', description);
-      }
-    },
-
-    createLocalFlux({ req, window }, clientID, lifespan) {
-      const server = new LocalFlux.Server();
-      lifespan.onRelease(server.lifespan.release);
-      const local = new LocalFlux.Client(server, clientID);
-      lifespan.onRelease(local.lifespan.release);
-
-      // Stores
-      const routerStore = server.Store('/router', lifespan);
-      routerStore.set('routes', App.getRoutes({ req, window })).commit();
-      const clicksStore = server.Store('/clicks', lifespan);
-      clicksStore.set('count', 0).commit();
-
-      // Actions
-      server.Action('/router/navigate', lifespan).onDispatch(({ url }) => {
-        if(__BROWSER__) { // if in the browser, defer to popstate handler
-          window.history.pushState(null, null, url);
-        }
-        if(__NODE__) { // if in node, handle directly
-          routerStore.set('routes', App.getRoutes({ url })).commit();
-        }
-      });
-      server.Action('/clicks/increase', lifespan).onDispatch(() => {
-        clicksStore.set('count', clicksStore.working.get('count') + 1).commit()
-      });
-
-      // Browser-only behaviour
-      if(__BROWSER__) {
-        const handlePopState = () => {
-          App.updateMetaDOMNodes({ window });
-          routerStore.set('routes', App.getRoutes({ window })).commit();
-        };
-        window.addEventListener('popstate', handlePopState);
-        lifespan.onRelease(() => window.removeEventListener('popstate', handlePopState));
-      }
-
-      return local;
-    },
-
-    createRemoteFlux({ req, window }, clientID, lifespan) {
-      const remote = new RemoteFluxClient(fluxURL, clientID);
-      lifespan.onRelease(remote.lifespan.release);
-
-      return remote;
-    },
-
-    createNexus({ req, window }, clientID, lifespan) {
-      return {
-        local: App.createLocalFlux({ req, window }, clientID, lifespan),
-        remote: App.createRemoteFlux({ req, window }, clientID, lifespan),
-      };
-    },
-  },
+  }),
 });
 
 export default App;
