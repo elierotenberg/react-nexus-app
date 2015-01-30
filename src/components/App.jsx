@@ -140,10 +140,10 @@ const App = React.createClass({
 
       // Browser-only behaviour
       if(__BROWSER__) {
-        function handlePopState() {
+        const handlePopState = () => {
           App.updateMetaDOMNodes({ window });
           routerStore.set('routes', App.getRoutes({ window })).commit();
-        }
+        };
         window.addEventListener('popstate', handlePopState);
         lifespan.onRelease(() => window.removeEventListener('popstate', handlePopState));
       }

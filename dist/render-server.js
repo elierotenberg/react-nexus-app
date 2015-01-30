@@ -1,24 +1,8 @@
 "use strict";
 
-var _slicedToArray = function (arr, i) {
-  if (Array.isArray(arr)) {
-    return arr;
-  } else {
-    var _arr = [];
+var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
 
-    for (var _iterator = arr[Symbol.iterator](), _step; !(_step = _iterator.next()).done;) {
-      _arr.push(_step.value);
-
-      if (i && _arr.length === i) break;
-    }
-
-    return _arr;
-  }
-};
-
-var _interopRequire = function (obj) {
-  return obj && (obj["default"] || obj);
-};
+var _slicedToArray = function (arr, i) { if (Array.isArray(arr)) { return arr; } else { var _arr = []; for (var _iterator = arr[Symbol.iterator](), _step; !(_step = _iterator.next()).done;) { _arr.push(_step.value); if (i && _arr.length === i) break; } return _arr; } };
 
 require("6to5/polyfill");
 var _ = require("lodash");
@@ -42,8 +26,10 @@ var Nexus = _interopRequire(require("react-nexus"));
 
 var jsesc = _interopRequire(require("jsesc"));
 
-var render = require("./config").render;
-var analytics = require("./config").analytics;
+var _config = require("./config");
+
+var render = _config.render;
+var analytics = _config.analytics;
 var App = _interopRequire(require("./components/App"));
 
 var React = Nexus.React;

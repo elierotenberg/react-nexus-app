@@ -1,8 +1,6 @@
 "use strict";
 
-var _interopRequire = function (obj) {
-  return obj && (obj["default"] || obj);
-};
+var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
 
 require("6to5/polyfill");
 var _ = require("lodash");
@@ -24,8 +22,10 @@ var LocalFlux = _interopRequire(require("nexus-flux/adapters/Local"));
 
 var RemoteFluxClient = _interopRequire(require("nexus-flux-socket.io/client"));
 
-var parse = require("url").parse;
-var format = require("url").format;
+var _url = require("url");
+
+var parse = _url.parse;
+var format = _url.format;
 var AnimateMixin = _interopRequire(require("react-animate"));
 
 var React = Nexus.React;
@@ -180,10 +180,10 @@ var App = React.createClass({
       "*": {
         boxSizing: "border-box" } },
 
-    getRoutes: function getRoutes(_ref2) {
-      var req = _ref2.req;
-      var window = _ref2.window;
-      var url = _ref2.url;
+    getRoutes: function getRoutes(_ref) {
+      var req = _ref.req;
+      var window = _ref.window;
+      var url = _ref.url;
       var href = url ? url : req ? req.url : window ? (window.location || window.history.location).href : null;
       var _parse = parse(href);
 
@@ -208,9 +208,9 @@ var App = React.createClass({
       }
     },
 
-    createLocalFlux: function createLocalFlux(_ref3, clientID, lifespan) {
-      var req = _ref3.req;
-      var window = _ref3.window;
+    createLocalFlux: function createLocalFlux(_ref, clientID, lifespan) {
+      var req = _ref.req;
+      var window = _ref.window;
       var server = new LocalFlux.Server();
       lifespan.onRelease(server.lifespan.release);
       var local = new LocalFlux.Client(server, clientID);
@@ -223,8 +223,8 @@ var App = React.createClass({
       clicksStore.set("count", 0).commit();
 
       // Actions
-      server.Action("/router/navigate", lifespan).onDispatch(function (_ref4) {
-        var url = _ref4.url;
+      server.Action("/router/navigate", lifespan).onDispatch(function (_ref2) {
+        var url = _ref2.url;
         if (__BROWSER__) {
           // if in the browser, defer to popstate handler
           window.history.pushState(null, null, url);
@@ -245,7 +245,6 @@ var App = React.createClass({
             App.updateMetaDOMNodes({ window: window });
             routerStore.set("routes", App.getRoutes({ window: window })).commit();
           };
-
           window.addEventListener("popstate", handlePopState);
           lifespan.onRelease(function () {
             return window.removeEventListener("popstate", handlePopState);
@@ -256,18 +255,18 @@ var App = React.createClass({
       return local;
     },
 
-    createRemoteFlux: function createRemoteFlux(_ref5, clientID, lifespan) {
-      var req = _ref5.req;
-      var window = _ref5.window;
+    createRemoteFlux: function createRemoteFlux(_ref, clientID, lifespan) {
+      var req = _ref.req;
+      var window = _ref.window;
       var remote = new RemoteFluxClient(fluxURL, clientID);
       lifespan.onRelease(remote.lifespan.release);
 
       return remote;
     },
 
-    createNexus: function createNexus(_ref6, clientID, lifespan) {
-      var req = _ref6.req;
-      var window = _ref6.window;
+    createNexus: function createNexus(_ref, clientID, lifespan) {
+      var req = _ref.req;
+      var window = _ref.window;
       return {
         local: App.createLocalFlux({ req: req, window: window }, clientID, lifespan),
         remote: App.createRemoteFlux({ req: req, window: window }, clientID, lifespan) };
